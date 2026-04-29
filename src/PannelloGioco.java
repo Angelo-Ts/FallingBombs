@@ -1,99 +1,144 @@
+import javax.swing.*;
 import java.awt.*;
-import java.util.*;
+import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.Random;
 
 public class PannelloGioco extends JPanel implements KeyListener {
 
-    // Oggetti di gioco
     private final Cannone cannone;
-    private final Bomba    bombaDiTest;   // placeholder visivo
-    private final Missile  missileDiTest; // placeholder visivo
+    // Liste per gestire oggetti multipli
+    private final ArrayList<Bomba> bombe = new ArrayList<>();
+    private final ArrayList<Missile> missili = new ArrayList<>();
+    
+    private int punteggio = 0;
+    private boolean gameOver = false;
+    private final Random random = new Random();
 
-    // Velocità di spostamento orizzontale del cannone (pixel per frame)
-    private static final int VELOCITA_CANNONE = 5;
-
-    // Stato dei tasti freccia (true = premuto)
+    private static final int VELOCITA_CANNONE = 7;
     private boolean tastoDestra = false;
     private boolean tastoSinistra = false;
 
     public PannelloGioco() {
-        setBackground(new Color(15, 15, 35)); // sfondo blu notte
-        setFocusable(true);                   // indispensabile per KeyListener
+        setBackground(new Color(15, 15, 35));
+        setFocusable(true);
         addKeyListener(this);
 
-        // Posiziona il cannone al centro-basso del pannello
         int xCannone = FallingBombs.LARGHEZZA / 2 - Cannone.LARGHEZZA / 2;
-        int yCannone = FallingBombs.ALTEZZA  - Cannone.ALTEZZA - 20;
+        int yCannone = FallingBombs.ALTEZZA - Cannone.ALTEZZA - 40;
         cannone = new Cannone(xCannone, yCannone);
 
-        // Oggetti di esempio (verranno gestiti dinamicamente nelle fasi successive)
-        bombaDiTest    = new Bomba(350, 80);
-        missileDiTest  = new Missile(410, 400);
+        // Timer principale per l'aggiornamento grafico (60 FPS)
+        new javax.swing.Timer(FallingBombs.RITARDO_MS, e -> aggiornaLogica()).start();
 
-        // Timer Swing: chiama actionPerformed ogni ~16 ms (60 FPS)
-        Timer timer = new Timer(FallingBombs.RITARDO_MS, e -> aggiornaFrame());
-        timer.start();
+        // Thread per la generazione delle bombe (Requisito Multithreading)
+        new Thread(() -> {
+            while (!gameOver) {
+                try {
+                    Thread.sleep(1500); // Genera una bomba ogni 1.5 secondi
+                    generaSquadraBomba();
+                } catch (InterruptedException e) { e.printStackTrace(); }
+            }
+        }).start();
     }
 
-    // Chiamato ad ogni tick del timer
-    private void aggiornaFrame() {
+    private synchronized void generaSquadraBomba() {
+        int xCasuale = random.nextInt(FallingBombs.LARGHEZZA - Bomba.RAGGIO * 2) + Bomba.RAGGIO;
+        int velCasuale = random.nextInt(3) + 2; // Velocità casuale tra 2 e 5
+        bombe.add(new Bomba(xCasuale, -Bomba.RAGGIO, velCasuale));
+    }
+
+    private void aggiornaLogica() {
+        if (gameOver) return;
+
         aggiornaCannone();
-        repaint(); // schedula un ridisegno del pannello
+
+        synchronized (this) {
+            // Muovi missili
+            Iterator<Missile> itMissili = missili.iterator();
+            while (itMissili.hasNext()) {
+                Missile m = itMissili.next();
+                m.y -= 8; // Velocità fissa missile
+                if (m.y < -20) itMissili.remove();
+            }
+
+            // Muovi bombe e controlla collisioni
+            Iterator<Bomba> itBombe = bombe.iterator();
+            while (itBombe.hasNext()) {
+                Bomba b = itBombe.next();
+                b.y += b.velocita; // Caduta a velocità casuale
+
+                // Controllo collisione terreno (Game Over)
+                if (b.y + Bomba.RAGGIO > FallingBombs.ALTEZZA - 20) {
+                    gameOver = true;
+                }
+
+                // Controllo collisione con missili
+                for (int i = 0; i < missili.size(); i++) {
+                    Missile m = missili.get(i);
+                    if (checkCollision(m, b)) {
+                        itBombe.remove();
+                        missili.remove(i);
+                        punteggio += 10;
+                        break;
+                    }
+                }
+            }
+        }
+        repaint();
     }
 
-    // Sposta il cannone in base ai tasti premuti, mantenendolo dentro i bordi
+    private boolean checkCollision(Missile m, Bomba b) {
+        // Calcolo distanza tra centro bomba e missile
+        double dist = Math.sqrt(Math.pow(m.x - b.x, 2) + Math.pow(m.y - b.y, 2));
+        return dist < Bomba.RAGGIO + 5;
+    }
+
     private void aggiornaCannone() {
-        if (tastoSinistra) {
-            cannone.x = Math.max(0, cannone.x - VELOCITA_CANNONE);
-        }
-        if (tastoDestra) {
-            cannone.x = Math.min(FallingBombs.LARGHEZZA - Cannone.LARGHEZZA,
-                                 cannone.x + VELOCITA_CANNONE);
-        }
+        if (tastoSinistra) cannone.x = Math.max(0, cannone.x - VELOCITA_CANNONE);
+        if (tastoDestra) cannone.x = Math.min(FallingBombs.LARGHEZZA - Cannone.LARGHEZZA, cannone.x + VELOCITA_CANNONE);
     }
 
-    // ---- Disegno ----
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g); // cancella il frame precedente
-
-        // Attiva l'anti-aliasing per forme più morbide
+        super.paintComponent(g);
         Graphics2D g2 = (Graphics2D) g;
-        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
-                            RenderingHints.VALUE_ANTIALIAS_ON);
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-        // Disegna gli oggetti di gioco
-        bombaDiTest.draw(g2);
-        missileDiTest.draw(g2);
         cannone.draw(g2);
+        synchronized (this) {
+            for (Bomba b : bombe) b.draw(g2);
+            for (Missile m : missili) m.draw(g2);
+        }
 
-        // HUD minimale: punteggio / istruzioni
         disegnaHUD(g2);
     }
 
-    // Disegna l'interfaccia utente sovrapposta alla scena
     private void disegnaHUD(Graphics2D g) {
-        g.setColor(new Color(180, 180, 220));
-        g.setFont(new Font("Monospaced", Font.PLAIN, 13));
-        g.drawString("← → per muovere il cannone", 10, 20);
-        g.drawString("[Fase 1/4 – struttura base]", 10, 38);
+        g.setColor(Color.WHITE);
+        g.setFont(new Font("Arial", Font.BOLD, 18));
+        g.drawString("Punteggio: " + punteggio, 20, 30);
+        if (gameOver) {
+            g.setColor(Color.RED);
+            g.setFont(new Font("Arial", Font.BOLD, 50));
+            g.drawString("GAME OVER", FallingBombs.LARGHEZZA/2 - 150, FallingBombs.ALTEZZA/2);
+        }
     }
 
-    // ---- KeyListener ----
     @Override
     public void keyPressed(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT  -> tastoSinistra = true;
-            case KeyEvent.VK_RIGHT -> tastoDestra   = true;
+        if (e.getKeyCode() == KeyEvent.VK_LEFT)  tastoSinistra = true;
+        if (e.getKeyCode() == KeyEvent.VK_RIGHT) tastoDestra = true;
+        if (e.getKeyCode() == KeyEvent.VK_SPACE && !gameOver) {
+            // Sparo: il missile parte dal centro del cannone
+            missili.add(new Missile(cannone.x + Cannone.LARGHEZZA / 2, cannone.y));
         }
     }
 
-    @Override
-    public void keyReleased(KeyEvent e) {
-        switch (e.getKeyCode()) {
-            case KeyEvent.VK_LEFT  -> tastoSinistra = false;
-            case KeyEvent.VK_RIGHT -> tastoDestra   = false;
-        }
+    @Override public void keyReleased(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_LEFT)  tastoSinistra = false;
+        if (e.getKeyCode() == KeyEvent.VK_RIGHT) tastoDestra = false;
     }
-
-    @Override public void keyTyped(KeyEvent e) { /* non usato */ }
+    @Override public void keyTyped(KeyEvent e) {}
 }

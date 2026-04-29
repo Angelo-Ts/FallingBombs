@@ -2,19 +2,19 @@ import java.awt.*;
 
 class Bomba {
 
-    public static final int RAGGIO = 20;
-    public int x, y, velocita; // Aggiunta velocità individuale
+    public static final int RAGGIO = 20; // raggio del cerchio
 
-    public Bomba(int x, int y, int velocita) {
+    public int x; // centro X
+    public int y; // centro Y
+
+    public Bomba(int x, int y) {
         this.x = x;
         this.y = y;
-        this.velocita = velocita;
     }
 
+    // Disegna la bomba come cerchio rosso con miccia
     public void draw(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
-        g2.setColor(new Color(200, 50, 50));
-        g2.fillOval(x - RAGGIO, y - RAGGIO, RAGGIO * 2, RAGGIO * 2);
 
         // Corpo della bomba
         g2.setColor(new Color(200, 50, 50));
