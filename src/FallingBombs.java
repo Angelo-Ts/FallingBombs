@@ -1,16 +1,10 @@
 import javax.swing.*;
-import java.awt.*;
-import java.awt.event.*;
+//  Contiene: FallingBombs (main), PannelloGioco, Cannone,Bomba, Missile
 
-// ============================================================
-//  FallingBombs – Struttura base (Fase 1/4)
-//  Contiene: FallingBombs (main), PannelloGioco, Cannone,
-//            Bomba, Missile
-// ============================================================
 
 public class FallingBombs extends JFrame {
 
-    // --- Costanti della finestra ---
+    //Costanti finestra 
     public static final int LARGHEZZA  = 800;
     public static final int ALTEZZA    = 600;
     public static final int FPS        = 60;

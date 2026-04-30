@@ -1,9 +1,9 @@
-import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Random;
+import javax.swing.*;
 
 public class PannelloGioco extends JPanel implements KeyListener {
 
@@ -29,7 +29,7 @@ public class PannelloGioco extends JPanel implements KeyListener {
         int yCannone = FallingBombs.ALTEZZA - Cannone.ALTEZZA - 40;
         cannone = new Cannone(xCannone, yCannone);
 
-        // Timer principale per l'aggiornamento grafico (60 FPS)
+        // Timer principale per l'aggiornamento grafico 
         new javax.swing.Timer(FallingBombs.RITARDO_MS, e -> aggiornaLogica()).start();
 
         // Thread per la generazione delle bombe (Requisito Multithreading)
@@ -69,7 +69,7 @@ public class PannelloGioco extends JPanel implements KeyListener {
                 Bomba b = itBombe.next();
                 b.y += b.velocita; // Caduta a velocità casuale
 
-                // Controllo collisione terreno (Game Over)
+                // Controllo collisione terreno Game Over
                 if (b.y + Bomba.RAGGIO > FallingBombs.ALTEZZA - 20) {
                     gameOver = true;
                 }

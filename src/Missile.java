@@ -1,7 +1,7 @@
 import java.awt.*; // Aggiunto import fondamentale
 
 class Missile {
-    public static final int LARGHEZZA = 8;
+    public static final int LARGHEZZA = 1000;
     public static final int ALTEZZA   = 20;
 
     public int x; 
